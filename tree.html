@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+    body {
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+    #main {
+        padding-top: 10px;
+        margin: auto;
+        width: 1401px;
+        position: relative;
+    }
+    .tmap {
+        position: relative;
+        width: 1401px;
+        height: 601px;
+        font: 9px sans-serif;
+        border: solid 1px black;
+    }
+    .node {
+        border: solid 1px white;
+        background: #ddd;
+        line-height: 8px;
+        overflow: hidden;
+        position: absolute;
+        text-indent: 1px;
+    }
+    .node:hover {
+        background: #ccc;
+    }
+    .size{
+        color: #666;
+    }
+    div.tooltip {
+        position: absolute;
+        text-align: center;
+        padding: 2px 4px;
+        font: 12px sans-serif;
+        background: lightsteelblue;
+        border: 0px;
+        border-radius: 4px;
+        pointer-events: none;
+    }
+
+
+</style>
+
+<body>
+<div id="main">
+    <h1>GBIF Backbone Taxonomy</h1>
+    <p>The backbone visualised as a treemap with size representing the number of included taxa.</p>
+</div>
+</body>
+
+<script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+<script>
+    var api = "http://api.gbif.org/v1/";
+    var width  = 1400;
+    var height = 600;
+
+    var color = d3.scale.category20c();
+
+    var title = d3.select("#main").append("h4");
+
+    var div = d3.select("#main").append("div")
+            .attr("class", "tmap");
+
+    var tpdiv = d3.select("body").append("div")
+            .attr("class", "tooltip")
+            .style("opacity", 0);
+
+    function load(uri, t) {
+        console.log("render "+uri);
+        title.text(t);
+        div.html("");
+        var treemap = d3.layout.treemap()
+                .size([width, height])
+                .sticky(true)
+                .round(false)
+                .value(function(d) { return d.size+1; });
+
+
+
+        d3.json(uri, function(error, children) {
+            if (error) throw error;
+
+            var data = {"name": "backbone", "children":children};
+            var node = div.datum(data).selectAll(".node")
+                    .data(treemap.nodes)
+                    .enter().append("div")
+                    .attr("class", "node")
+                    .attr("id", function(d){return d.key;})
+                    .call(position)
+                    .text(function(d){return d.name;})
+                    .on("click", function(d){
+                        if (d.size > 0) {
+                            load(api + "treemap/children/" + d.key, d.name, d.key);
+                        }
+                    })
+                    .on("mouseover", function(d) {
+                        tpdiv.transition()
+                            .duration(200)
+                            .style("opacity", .9);
+                        tpdiv.html(d.name + "<div class='size'>" + d.size + "</div>")
+                            .style("left", (d3.event.pageX) + "px")
+                            .style("top", (d3.event.pageY - 28) + "px");
+                    })
+                    .on("mouseout", function(d) {
+                        tpdiv.transition()
+                            .duration(500)
+                            .style("opacity", 0);
+                    })
+                    ;
+        });
+    }
+
+    function position() {
+        this.style("left", function(d) { return d.x + "px"; })
+            .style("top", function(d) { return d.y + "px"; })
+            .style("width", function(d) { return Math.max(0, d.dx - 1) + "px"; })
+            .style("height", function(d) { return Math.max(0, d.dy - 1) + "px"; });
+    }
+
+    // load roots
+    load(api + "treemap/root/d7dddbf4-2cf0-4f39-9b2a-bb099caae36c", "Kingdoms");
+
+</script>
